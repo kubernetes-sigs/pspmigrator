@@ -9,6 +9,12 @@ the following features:
 - Detect if PSP object is potentially mutating Pods
 - Detect if a Pod is being mutated by a PSP object
 
+Disclaimer: Migrating to PSA might cause new pods to no longer be allowed to
+run. So make sure you do test this out before applying PodSecurity Standards
+on your namespaces.
+
+Status: Work in progress, usable for testing purposes
+
 ## Installation
 
 ```
