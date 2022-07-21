@@ -26,7 +26,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
-	psaApi "k8s.io/pod-security-admission/api"
+	psaapi "k8s.io/pod-security-admission/api"
 )
 
 var DryRun bool
@@ -87,7 +87,7 @@ var MigrateCmd = &cobra.Command{
 					namespace.Name, namespace.Labels)
 				continue
 			}
-			suggestions := make(map[psaApi.Level]bool)
+			suggestions := make(map[psaapi.Level]bool)
 			podList, err := GetPodsByNamespace(namespace.Name)
 			if err != nil {
 				log.Printf("Error getting pods for namespace %v. Error: %v\n", namespace.Name, err.Error())
@@ -108,15 +108,15 @@ var MigrateCmd = &cobra.Command{
 				}
 				suggestions[level] = true
 			}
-			var suggested psaApi.Level
+			var suggested psaapi.Level
 			if suggestions["restricted"] {
-				suggested = psaApi.LevelRestricted
+				suggested = psaapi.LevelRestricted
 			}
 			if suggestions["baseline"] {
-				suggested = psaApi.LevelBaseline
+				suggested = psaapi.LevelBaseline
 			}
 			if suggestions["privileged"] {
-				suggested = psaApi.LevelPrivileged
+				suggested = psaapi.LevelPrivileged
 			}
 			fmt.Printf("Suggest using %v in namespace %v\n", suggested, namespace.Name)
 			if DryRun == true {

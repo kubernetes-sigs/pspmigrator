@@ -23,7 +23,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	psaApi "k8s.io/pod-security-admission/api"
+	psaapi "k8s.io/pod-security-admission/api"
 )
 
 func IgnoreNamespaceSelector(field string) string {
@@ -53,7 +53,7 @@ func GetNamespaces() (*v1.NamespaceList, error) {
 	return namespaces, err
 }
 
-func ApplyPSSLevel(namespace *v1.Namespace, level psaApi.Level, control string) error {
+func ApplyPSSLevel(namespace *v1.Namespace, level psaapi.Level, control string) error {
 	namespace.Labels["pod-security.kubernetes.io/"+control] = string(level)
 	_, err := clientset.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
 	return err
