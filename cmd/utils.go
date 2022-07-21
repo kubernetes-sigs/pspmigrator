@@ -35,39 +35,28 @@ func IgnoreNamespaceSelector(field string) string {
 	return fields.AndSelectors(selectors...).String()
 }
 
-func GetPods() *v1.PodList {
+func GetPods() (*v1.PodList, error) {
 	listOptions := metav1.ListOptions{FieldSelector: IgnoreNamespaceSelector("metadata.namespace")}
 	pods, err := clientset.CoreV1().Pods("").List(context.TODO(), listOptions)
-	if err != nil {
-		panic(err.Error())
-	}
-	return pods
+	return pods, err
 }
 
-func GetPodsByNamespace(namespace string) *v1.PodList {
+func GetPodsByNamespace(namespace string) (*v1.PodList, error) {
 	listOptions := metav1.ListOptions{}
 	pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), listOptions)
-	if err != nil {
-		panic(err.Error())
-	}
-	return pods
+	return pods, err
 }
 
-func GetNamespaces() *v1.NamespaceList {
+func GetNamespaces() (*v1.NamespaceList, error) {
 	listOptions := metav1.ListOptions{FieldSelector: IgnoreNamespaceSelector("metadata.name")}
 	namespaces, err := clientset.CoreV1().Namespaces().List(context.TODO(), listOptions)
-	if err != nil {
-		panic(err.Error())
-	}
-	return namespaces
+	return namespaces, err
 }
 
-func ApplyPSSLevel(namespace *v1.Namespace, level psaApi.Level, control string) {
+func ApplyPSSLevel(namespace *v1.Namespace, level psaApi.Level, control string) error {
 	namespace.Labels["pod-security.kubernetes.io/"+control] = string(level)
-	namespace, err := clientset.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
-	if err != nil {
-		panic(err.Error())
-	}
+	_, err := clientset.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
+	return err
 }
 
 func NamespaceHasPSALabels(namespace *v1.Namespace) bool {

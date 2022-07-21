@@ -42,7 +42,10 @@ var MigrateCmd = &cobra.Command{
 	Suggested Pod Security Standard for each namespace. In addition, it also
 	checks whether a PSP object is mutating pods in every namespace.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		pods := GetPods()
+		pods, err := GetPods()
+		if err != nil {
+			log.Fatalln("Error getting pods", err.Error())
+		}
 		fmt.Println("Checking if any pods are being mutated by a PSP object")
 		mutatedPods := make([]v1.Pod, 0)
 		for _, pod := range pods.Items {
@@ -71,7 +74,12 @@ var MigrateCmd = &cobra.Command{
 			fmt.Printf("Please re-run the tool again after you've modified your PodSpecs.\n")
 			os.Exit(1)
 		}
-		for _, namespace := range GetNamespaces().Items {
+
+		namespaces, err := GetNamespaces()
+		if err != nil {
+			log.Fatalln("Error getting namespaces:", err.Error())
+		}
+		for _, namespace := range namespaces.Items {
 			// Check if namespace already has psa labels
 			if NamespaceHasPSALabels(&namespace) {
 				log.Printf("The namespace %v already has PSA labels set. So skipping....\n", namespace.Name)
@@ -80,7 +88,13 @@ var MigrateCmd = &cobra.Command{
 				continue
 			}
 			suggestions := make(map[string]bool)
-			pods := GetPodsByNamespace(namespace.Name).Items
+			podList, err := GetPodsByNamespace(namespace.Name)
+			if err != nil {
+				log.Printf("Error getting pods for namespace %v. Error: %v\n", namespace.Name, err.Error())
+				log.Println("Continuing with next namespace")
+				continue
+			}
+			pods := podList.Items
 			if len(pods) == 0 {
 				fmt.Printf("There are no pods running in namespace %v. Skipping and going to the next one.\n", namespace.Name)
 				continue
@@ -121,7 +135,9 @@ var MigrateCmd = &cobra.Command{
 				if control == skipStr {
 					continue
 				}
-				ApplyPSSLevel(&namespace, suggested, control)
+				if err := ApplyPSSLevel(&namespace, suggested, control); err != nil {
+					log.Printf("Error applying %v on namespace %v. Error: %v\n", suggested, namespace.Name, err.Error())
+				}
 				fmt.Printf("Applied pod security level %v on namespace %v in %v control mode\n", suggested, namespace.Name, control)
 				fmt.Printf("Review the labels by running `kubectl get ns %v -o yaml`\n", namespace.Name)
 			}

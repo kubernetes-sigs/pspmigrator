@@ -88,7 +88,10 @@ func initMutating() {
 		Run: func(cmd *cobra.Command, args []string) {
 			table := tablewriter.NewWriter(os.Stdout)
 			table.SetHeader([]string{"Name", "Namespace", "Mutated", "PSP"})
-			pods := GetPods()
+			pods, err := GetPods()
+			if err != nil {
+				log.Fatalln("Error getting pods", err.Error())
+			}
 			fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
 			for _, pod := range pods.Items {
 				if pspName, ok := pod.ObjectMeta.Annotations["kubernetes.io/psp"]; ok {
