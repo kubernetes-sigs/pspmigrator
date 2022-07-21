@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Kubernetes Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cmd
 
 import (
@@ -7,8 +23,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/kubernetes-sigs/pspmigrator"
+	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,22 +40,23 @@ func initMutating() {
 		Use:   "pod [name of pod]",
 		Short: "Check if a pod is being mutated by a PSP policy",
 		Run: func(cmd *cobra.Command, args []string) {
-			// Examples for error handling:
-			// - Use helper functions like e.g. errors.IsNotFound()
-			// - And/or cast to StatusError and use its properties like e.g. ErrStatus.Message
 			pod := args[0]
 			podObj, err := clientset.CoreV1().Pods(Namespace).Get(context.TODO(), pod, metav1.GetOptions{})
 			if errors.IsNotFound(err) {
 				fmt.Printf("Pod %s in namespace %s not found\n", pod, Namespace)
+				os.Exit(1)
 			} else if statusError, isStatus := err.(*errors.StatusError); isStatus {
 				fmt.Printf("Error getting pod %s in namespace %s: %v\n",
 					pod, Namespace, statusError.ErrStatus.Message)
+				os.Exit(1)
 			} else if err != nil {
-				panic(err.Error())
+				log.Fatalln(err.Error())
+				os.Exit(1)
 			} else {
 				mutated, diff, err := pspmigrator.IsPodBeingMutatedByPSP(podObj, clientset)
 				if err != nil {
 					log.Println(err)
+					os.Exit(1)
 				}
 				if pspName, ok := podObj.ObjectMeta.Annotations["kubernetes.io/psp"]; ok {
 					fmt.Printf("Pod %v is mutated by PSP %v: %v, diff: %v\n", podObj.Name, pspName, mutated, diff)
@@ -98,11 +115,14 @@ func initMutating() {
 			pspObj, err := clientset.PolicyV1beta1().PodSecurityPolicies().Get(context.TODO(), pspName, metav1.GetOptions{})
 			if errors.IsNotFound(err) {
 				fmt.Printf("PodSecurityPolicy %s not found\n", pspName)
+				os.Exit(1)
 			} else if statusError, isStatus := err.(*errors.StatusError); isStatus {
 				fmt.Printf("Error getting PodSecurityPolicy %s: %v\n",
 					pspName, statusError.ErrStatus.Message)
+				os.Exit(1)
 			} else if err != nil {
-				panic(err.Error())
+				log.Fatalln(err.Error())
+				os.Exit(1)
 			} else {
 				_, fields, annotations := pspmigrator.IsPSPMutating(pspObj)
 				fmt.Printf("PSP profile %v has the following mutating fields: %v and annotations: %v\n", pspName, fields, annotations)
