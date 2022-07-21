@@ -87,7 +87,7 @@ var MigrateCmd = &cobra.Command{
 					namespace.Name, namespace.Labels)
 				continue
 			}
-			suggestions := make(map[string]bool)
+			suggestions := make(map[psaApi.Level]bool)
 			podList, err := GetPodsByNamespace(namespace.Name)
 			if err != nil {
 				log.Printf("Error getting pods for namespace %v. Error: %v\n", namespace.Name, err.Error())
@@ -106,7 +106,7 @@ var MigrateCmd = &cobra.Command{
 					fmt.Println("Continuing with the next namespace due to error with ", namespace.Name)
 					continue
 				}
-				suggestions[string(level)] = true
+				suggestions[level] = true
 			}
 			var suggested psaApi.Level
 			if suggestions["restricted"] {
