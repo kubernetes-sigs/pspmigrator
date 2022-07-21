@@ -54,10 +54,11 @@ func init() {
 
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	config.WarningHandler = rest.NoWarnings{}
 	if err != nil {
 		panic(err.Error())
 	}
+	config.UserAgent = "pspmigrator"
+	config.WarningHandler = rest.NoWarnings{}
 
 	// create the clientset
 	clientset, err = kubernetes.NewForConfig(config)
