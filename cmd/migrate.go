@@ -72,6 +72,13 @@ var MigrateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		for _, namespace := range GetNamespaces().Items {
+			// Check if namespace already has psa labels
+			if NamespaceHasPSALabels(&namespace) {
+				log.Printf("The namespace %v already has PSA labels set. So skipping....\n", namespace.Name)
+				log.Printf("The following labels are currently set on the %v namespace.\n Labels: %#v\n",
+					namespace.Name, namespace.Labels)
+				continue
+			}
 			suggestions := make(map[string]bool)
 			pods := GetPodsByNamespace(namespace.Name).Items
 			if len(pods) == 0 {
@@ -82,6 +89,8 @@ var MigrateCmd = &cobra.Command{
 				level, err := pspmigrator.SuggestedPodSecurityStandard(&pod)
 				if err != nil {
 					fmt.Println("error occured checking the suggested pod security standard", err)
+					fmt.Println("Continuing with the next namespace due to error with ", namespace.Name)
+					continue
 				}
 				suggestions[string(level)] = true
 			}

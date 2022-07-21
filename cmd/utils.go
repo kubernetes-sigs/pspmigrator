@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"context"
+	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,4 +68,13 @@ func ApplyPSSLevel(namespace *v1.Namespace, level psaApi.Level, control string) 
 	if err != nil {
 		panic(err.Error())
 	}
+}
+
+func NamespaceHasPSALabels(namespace *v1.Namespace) bool {
+	for k, _ := range namespace.Labels {
+		if strings.HasPrefix(k, "pod-security.kubernetes.io") {
+			return true
+		}
+	}
+	return false
 }
