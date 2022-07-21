@@ -5,13 +5,19 @@ import (
 	"log"
 	"os"
 
+	"github.com/kubernetes-sigs/pspmigrator"
 	"github.com/manifoldco/promptui"
 	"github.com/olekukonko/tablewriter"
-	"github.com/kubernetes-sigs/pspmigrator"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	psaApi "k8s.io/pod-security-admission/api"
 )
+
+var DryRun bool
+
+func init() {
+	MigrateCmd.Flags().BoolVarP(&DryRun, "dry-run", "d", true, "Set dry run to true to not apply any changes")
+}
 
 var MigrateCmd = &cobra.Command{
 	Use:   "migrate",
@@ -26,7 +32,7 @@ var MigrateCmd = &cobra.Command{
 		for _, pod := range pods.Items {
 			mutated, _, err := pspmigrator.IsPodBeingMutatedByPSP(&pod, clientset)
 			if err != nil {
-				log.Println(err)
+				log.Fatalln(err)
 			}
 			if mutated {
 				mutatedPods = append(mutatedPods, pod)
@@ -34,8 +40,9 @@ var MigrateCmd = &cobra.Command{
 		}
 		if len(mutatedPods) > 0 {
 			fmt.Println("The table below shows the pods that were mutated by a PSP object")
+			// TODO: Group pods by controller to remove duplicate pods
 			table := tablewriter.NewWriter(os.Stdout)
-			table.SetHeader([]string{"Name", "Namespace", "PSP"})
+			table.SetHeader([]string{"Pod Name", "Namespace", "PSP"})
 			for _, pod := range mutatedPods {
 				if pspName, ok := pod.ObjectMeta.Annotations["kubernetes.io/psp"]; ok {
 					table.Append([]string{pod.Name, pod.Namespace, pspName})
@@ -73,21 +80,26 @@ var MigrateCmd = &cobra.Command{
 				suggested = psaApi.LevelPrivileged
 			}
 			fmt.Printf("Suggest using %v in namespace %v\n", suggested, namespace.Name)
-			skipStr := "skip, continue with next namespace"
-			prompt := promptui.Select{
-				Label: fmt.Sprintf("Select control mode for %v on namespace %v", suggested, namespace.Name),
-				Items: []string{"enforce", "audit", skipStr},
+			if DryRun == true {
+				fmt.Printf("In dry-run mode so not applying any changes. You can run this ")
+				fmt.Printf("command again with --dry-run=false to apply %v on namespace %v\n", suggested, namespace.Name)
+			} else {
+				skipStr := "skip, continue with next namespace"
+				prompt := promptui.Select{
+					Label: fmt.Sprintf("Select control mode for %v on namespace %v", suggested, namespace.Name),
+					Items: []string{"enforce", "audit", skipStr},
+				}
+				_, control, err := prompt.Run()
+				if err != nil {
+					fmt.Println("error occured getting enforcement mode", err)
+				}
+				if control == skipStr {
+					continue
+				}
+				ApplyPSSLevel(&namespace, suggested, control)
+				fmt.Printf("Applied pod security level %v on namespace %v in %v control mode\n", suggested, namespace.Name, control)
+				fmt.Printf("Review the labels by running `kubectl get ns %v -o yaml`\n", namespace.Name)
 			}
-			_, control, err := prompt.Run()
-			if err != nil {
-				fmt.Println("error occured getting enforcement mode", err)
-			}
-			if control == skipStr {
-				continue
-			}
-			ApplyPSSLevel(&namespace, suggested, control)
-			fmt.Printf("Applied pod security level %v on namespace %v in %v control mode\n", suggested, namespace.Name, control)
-			fmt.Printf("Review the labels by running `kubectl get ns %v -o yaml`\n", namespace.Name)
 		}
 		fmt.Println("Done with migrating namespaces with pods to PSA")
 
