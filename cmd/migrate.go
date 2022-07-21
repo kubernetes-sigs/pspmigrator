@@ -109,14 +109,13 @@ var MigrateCmd = &cobra.Command{
 				suggestions[level] = true
 			}
 			var suggested psaapi.Level
-			if suggestions["restricted"] {
-				suggested = psaapi.LevelRestricted
-			}
-			if suggestions["baseline"] {
-				suggested = psaapi.LevelBaseline
-			}
-			if suggestions["privileged"] {
+			switch {
+			case suggestions["privileged"]:
 				suggested = psaapi.LevelPrivileged
+			case suggestions["baseline"]:
+				suggested = psaapi.LevelBaseline
+			case suggestions["restricted"]:
+				suggested = psaapi.LevelRestricted
 			}
 			fmt.Printf("Suggest using %v in namespace %v\n", suggested, namespace.Name)
 			if DryRun == true {
@@ -124,6 +123,7 @@ var MigrateCmd = &cobra.Command{
 				fmt.Printf("command again with --dry-run=false to apply %v on namespace %v\n", suggested, namespace.Name)
 			} else {
 				skipStr := "skip, continue with next namespace"
+				// TODO add ability to set this as a flag for all namespaces instead of prompting per namespace
 				prompt := promptui.Select{
 					Label: fmt.Sprintf("Select control mode for %v on namespace %v", suggested, namespace.Name),
 					Items: []string{"enforce", "audit", skipStr},
