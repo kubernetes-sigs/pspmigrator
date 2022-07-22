@@ -36,13 +36,9 @@ func init() {
 }
 
 func SuggestedPodSecurityStandard(pod *v1.Pod) (psaapi.Level, error) {
-	apiVersion, err := psaapi.ParseVersion("latest")
-	if err != nil {
-		return "", err
-	}
 	for _, apiLevel := range []psaapi.Level{psaapi.LevelRestricted, psaapi.LevelBaseline} {
 		result := policy.AggregateCheckResults(evaluator.EvaluatePod(
-			psaapi.LevelVersion{Level: apiLevel, Version: apiVersion}, &pod.ObjectMeta, &pod.Spec))
+			psaapi.LevelVersion{Level: apiLevel, Version: psaapi.LatestVersion()}, &pod.ObjectMeta, &pod.Spec))
 
 		if result.Allowed {
 			return apiLevel, nil
