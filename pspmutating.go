@@ -18,7 +18,6 @@ package pspmigrator
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/go-test/deep"
@@ -81,7 +80,8 @@ func IsPodBeingMutatedByPSP(pod *v1.Pod, clientset *kubernetes.Clientset) (mutat
 			parentPod = ds.Spec.Template
 		}
 		if owner.Kind == "Node" {
-			return false, diff, fmt.Errorf("Pod with ownerReference of kind Node is not supported. OwnerReference of pod %v was %#v", pod.Name, owner)
+			// static pods launched by the node that can't be mutated
+			return false, diff, nil
 		}
 		// TODO investigate if 1st party library can be used such as github.com/google/go-cmp or smth from k8s
 		if diffNew := deep.Equal(GetContainerSecurityContexts(parentPod.Spec), GetContainerSecurityContexts(pod.Spec)); diffNew != nil {
