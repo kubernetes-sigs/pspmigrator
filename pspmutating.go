@@ -33,6 +33,12 @@ func GetContainerSecurityContexts(podSpec v1.PodSpec) []*v1.SecurityContext {
 	for _, c := range podSpec.Containers {
 		scs = append(scs, c.SecurityContext)
 	}
+	for _, c := range podSpec.InitContainers {
+		scs = append(scs, c.SecurityContext)
+	}
+	for _, c := range podSpec.EphemeralContainers {
+		scs = append(scs, c.SecurityContext)
+	}
 	return scs
 }
 
