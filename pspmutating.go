@@ -29,6 +29,7 @@ import (
 )
 
 func GetContainerSecurityContexts(podSpec v1.PodSpec) []*v1.SecurityContext {
+	// TODO reuse VisitContainers from k8s pkg/api/pod/util.go
 	scs := make([]*v1.SecurityContext, 0)
 	for _, c := range podSpec.Containers {
 		scs = append(scs, c.SecurityContext)
@@ -82,6 +83,7 @@ func IsPodBeingMutatedByPSP(pod *v1.Pod, clientset *kubernetes.Clientset) (mutat
 		if owner.Kind == "Node" {
 			return false, diff, fmt.Errorf("Pod with ownerReference of kind Node is not supported. OwnerReference of pod %v was %#v", pod.Name, owner)
 		}
+		// TODO investigate if 1st party library can be used such as github.com/google/go-cmp or smth from k8s
 		if diffNew := deep.Equal(GetContainerSecurityContexts(parentPod.Spec), GetContainerSecurityContexts(pod.Spec)); diffNew != nil {
 			diff = append(diff, diffNew...)
 		}
