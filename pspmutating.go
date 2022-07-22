@@ -165,9 +165,6 @@ func IsPSPMutating(pspObj *v1beta1.PodSecurityPolicy) (mutating bool, fields, an
 		}
 	}
 
-	if len(fields) > 0 || len(annotations) > 0 {
-		return true, fields, annotations
-	}
-
-	return false, fields, annotations
+	isMutating := len(fields) > 0 || len(annotations) > 0
+	return isMutating, fields, annotations
 }
