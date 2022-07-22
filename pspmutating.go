@@ -154,13 +154,14 @@ func IsPSPMutating(pspObj *v1beta1.PodSecurityPolicy) (mutating bool, fields, an
 		fields = append(fields, "AllowPrivilegeEscalation")
 	}
 
-	mutatingAnnotations := make(map[string]bool)
-	mutatingAnnotations["seccomp.security.alpha.kubernetes.io/defaultProfileName"] = true
-	mutatingAnnotations["apparmor.security.beta.kubernetes.io/defaultProfileName"] = true
+	mutatingAnnotations := []string{
+		"seccomp.security.alpha.kubernetes.io/defaultProfileName",
+		"apparmor.security.beta.kubernetes.io/defaultProfileName",
+	}
 
-	for k, _ := range pspObj.Annotations {
-		if _, ok := mutatingAnnotations[k]; ok {
-			annotations = append(annotations, k)
+	for _, a := range mutatingAnnotations {
+		if _, ok := pspObj.Annotations[a]; ok {
+			annotations = append(annotations, a)
 		}
 	}
 
