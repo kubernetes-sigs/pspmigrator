@@ -18,16 +18,19 @@ package pspmigrator
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/go-test/deep"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	psaadmission "k8s.io/pod-security-admission/admission"
 )
 
-func GetContainerSecurityContexts(podSpec v1.PodSpec) []*v1.SecurityContext {
+func GetContainerSecurityContexts(podSpec *v1.PodSpec) []*v1.SecurityContext {
 	// TODO reuse VisitContainers from k8s pkg/api/pod/util.go
 	scs := make([]*v1.SecurityContext, 0)
 	for _, c := range podSpec.Containers {
@@ -52,6 +55,29 @@ func GetPSPAnnotations(annotations map[string]string) map[string]string {
 	return pspAnnotations
 }
 
+func FetchControllerPod(kind, name, namespace string, clientset *kubernetes.Clientset) (*metav1.ObjectMeta, *v1.PodSpec, error) {
+	obj, err := FetchControllerObj(kind, name, namespace, clientset)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to fetch controller: %w", err)
+	}
+	return psaadmission.DefaultPodSpecExtractor{}.ExtractPodSpec(obj)
+}
+
+func FetchControllerObj(kind, name, namespace string, clientset *kubernetes.Clientset) (runtime.Object, error) {
+	// TODO review and document which controllers don't require special handling
+	// https://github.com/kubernetes/pod-security-admission/blob/master/admission/admission.go#L93
+	// for example, Deployments would fall under the ReplicaSet case so no need to have a case
+	// statement for Deployments.
+	switch kind {
+	case "ReplicaSet":
+		return clientset.AppsV1().ReplicaSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	case "DaemonSet":
+		return clientset.AppsV1().DaemonSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	default:
+		return nil, fmt.Errorf("unsupported controller kind %s", kind)
+	}
+}
+
 // IsPodBeingMutatedByPSP returns whether a pod is likely mutated by a PSP object. It also returns the difference
 // of the securityContext attribute between the parent controller (e.g. Deployment) and the running pod.
 func IsPodBeingMutatedByPSP(pod *v1.Pod, clientset *kubernetes.Clientset) (mutating bool, diff []string, err error) {
@@ -64,33 +90,22 @@ func IsPodBeingMutatedByPSP(pod *v1.Pod, clientset *kubernetes.Clientset) (mutat
 				break
 			}
 		}
-		var parentPod v1.PodTemplateSpec
-		if owner.Kind == "ReplicaSet" {
-			rs, err := clientset.AppsV1().ReplicaSets(pod.Namespace).Get(context.TODO(), owner.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, diff, err
-			}
-			parentPod = rs.Spec.Template
-		}
-		if owner.Kind == "DaemonSet" {
-			ds, err := clientset.AppsV1().DaemonSets(pod.Namespace).Get(context.TODO(), owner.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, diff, err
-			}
-			parentPod = ds.Spec.Template
-		}
 		if owner.Kind == "Node" {
 			// static pods launched by the node that can't be mutated
 			return false, diff, nil
 		}
+		parentPodMeta, parentPodSpec, err := FetchControllerPod(owner.Kind, owner.Name, pod.Namespace, clientset)
+		if err != nil {
+			return false, diff, err
+		}
 		// TODO investigate if 1st party library can be used such as github.com/google/go-cmp or smth from k8s
-		if diffNew := deep.Equal(GetContainerSecurityContexts(parentPod.Spec), GetContainerSecurityContexts(pod.Spec)); diffNew != nil {
+		if diffNew := deep.Equal(GetContainerSecurityContexts(parentPodSpec), GetContainerSecurityContexts(&pod.Spec)); diffNew != nil {
 			diff = append(diff, diffNew...)
 		}
-		if diffNew := deep.Equal(parentPod.Spec.SecurityContext, pod.Spec.SecurityContext); diffNew != nil {
+		if diffNew := deep.Equal(parentPodSpec.SecurityContext, pod.Spec.SecurityContext); diffNew != nil {
 			diff = append(diff, diffNew...)
 		}
-		if diffNew := deep.Equal(GetPSPAnnotations(parentPod.ObjectMeta.Annotations), GetPSPAnnotations(pod.ObjectMeta.Annotations)); diffNew != nil {
+		if diffNew := deep.Equal(GetPSPAnnotations(parentPodMeta.Annotations), GetPSPAnnotations(pod.ObjectMeta.Annotations)); diffNew != nil {
 			diff = append(diff, diffNew...)
 		}
 	}
