@@ -17,27 +17,30 @@ limitations under the License.
 package pspmigrator
 
 import (
+	"log"
+
 	v1 "k8s.io/api/core/v1"
 
-	"k8s.io/pod-security-admission/api"
 	psaapi "k8s.io/pod-security-admission/api"
 	"k8s.io/pod-security-admission/policy"
 )
 
+var evaluator policy.Evaluator
+
+func init() {
+	var err error
+	evaluator, err = policy.NewEvaluator(policy.DefaultChecks())
+	if err != nil {
+		log.Println("Error initializing evaluator:", err.Error())
+	}
+}
+
 func SuggestedPodSecurityStandard(pod *v1.Pod) (psaapi.Level, error) {
-	evaluator, err := policy.NewEvaluator(policy.DefaultChecks())
+	apiVersion, err := psaapi.ParseVersion("latest")
 	if err != nil {
 		return "", err
 	}
-	apiVersion, err := api.ParseVersion("latest")
-	if err != nil {
-		return "", err
-	}
-	for _, level := range []string{"restricted", "baseline"} {
-		apiLevel, err := psaapi.ParseLevel(level)
-		if err != nil {
-			return "", err
-		}
+	for _, apiLevel := range []psaapi.Level{psaapi.LevelRestricted, psaapi.LevelBaseline} {
 		result := policy.AggregateCheckResults(evaluator.EvaluatePod(
 			psaapi.LevelVersion{Level: apiLevel, Version: apiVersion}, &pod.ObjectMeta, &pod.Spec))
 
@@ -45,5 +48,5 @@ func SuggestedPodSecurityStandard(pod *v1.Pod) (psaapi.Level, error) {
 			return apiLevel, nil
 		}
 	}
-	return api.LevelPrivileged, nil
+	return psaapi.LevelPrivileged, nil
 }
