@@ -18,10 +18,8 @@ Status: Work in progress, usable for testing purposes
 ## Installation
 
 ```
-go install github.com/kubernetes-sigs/pspmigrator/cmd/pspmigrator
+go install github.com/kubernetes-sigs/pspmigrator/cmd/pspmigrator@latest
 ```
-
-Alternatively, you can download a release from [here](https://github.com/kubernetes-sigs/pspmigrator/releases/latest)
 
 ## Usage
 Start the migration from PSP to PSA
