@@ -73,6 +73,9 @@ func FetchControllerObj(kind, name, namespace string, clientset *kubernetes.Clie
 		return clientset.AppsV1().ReplicaSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	case "DaemonSet":
 		return clientset.AppsV1().DaemonSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	case "Job":
+		// Both CronJob-managed and Job-managed pods are of type Job owner
+		return clientset.BatchV1().Jobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	default:
 		return nil, fmt.Errorf("unsupported controller kind %s", kind)
 	}
