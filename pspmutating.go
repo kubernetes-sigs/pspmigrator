@@ -73,6 +73,8 @@ func FetchControllerObj(kind, name, namespace string, clientset *kubernetes.Clie
 		return clientset.AppsV1().ReplicaSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	case "DaemonSet":
 		return clientset.AppsV1().DaemonSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	case "StatefulSet":
+		return clientset.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	default:
 		return nil, fmt.Errorf("unsupported controller kind %s", kind)
 	}
